@@ -1,12 +1,18 @@
 #!/usr/bin/env python3
-"""Builds a VPM listing (index.json) and a landing page from GitHub releases.
+"""Builds a VPM listing (index.json), a static npm-style Unity registry and a landing page from
+GitHub releases.
 
-Each package repository's Release workflow attaches three assets to a release:
-<name>-<version>.zip, <name>-<version>.zip.sha256 and package.json. This script reads those
-releases, copies each package.json into the listing with "url" (the zip) and "zipSHA256", and
-writes index.json plus index.html into the output folder. Only the standard library is used.
+Each package repository's Release workflow attaches <name>-<version>.zip, its .sha256 and
+package.json to a release; the signed <name>-<version>.tgz is uploaded by hand after signing.
+- VPM: each package.json goes into index.json with "url" (the zip) and "zipSHA256".
+- Registry: every release that has the signed .tgz becomes a version in a static packument at
+  /<name>, plus /-/all and /-/v1/search (a static host ignores the query string, so the search
+  "endpoint" is one file listing every package). Tarball URLs point at the release assets.
+Only the standard library is used.
 """
 import argparse
+import base64
+import datetime
 import hashlib
 import html
 import json
@@ -46,7 +52,26 @@ def releases(repo, token):
         page += 1
 
 
-def collect(repo, token, packages):
+def collect_tarball(repo, tag, release, assets, package, token, tarballs):
+    """Records the signed .tgz of a release for the npm-style registry, if the release has one."""
+    name, version = package["name"], package["version"]
+    tgz = assets.get(f"{name}-{version}.tgz")
+    if not tgz:
+        return
+    data = fetch(tgz["browser_download_url"], token, "application/octet-stream")
+    entry = dict(package)
+    entry["_id"] = f"{name}@{version}"
+    entry["dist"] = {
+        "tarball": tgz["browser_download_url"],
+        "shasum": hashlib.sha1(data).hexdigest(),
+        "integrity": "sha512-" + base64.b64encode(hashlib.sha512(data).digest()).decode(),
+    }
+    entry.setdefault("repository", {"type": "git", "url": f"https://github.com/{repo}.git"})
+    tarballs.setdefault(name, {})[version] = {"manifest": entry, "published": release.get("published_at") or release.get("created_at")}
+    print(f"  registry: {name} {version} <- {tgz['name']}")
+
+
+def collect(repo, token, packages, tarballs):
     """Adds every release of one repository that carries the expected assets."""
     for release in releases(repo, token):
         tag = release.get("tag_name", "?")
@@ -66,6 +91,8 @@ def collect(repo, token, packages):
         if tag != "v" + version:
             print(f"skip {repo}@{tag}: tag does not match version {version}", file=sys.stderr)
             continue
+
+        collect_tarball(repo, tag, release, assets, package, token, tarballs)
 
         package["url"] = zip_asset["browser_download_url"]
         sha_asset = assets.get(zip_asset["name"] + ".sha256")
@@ -147,6 +174,62 @@ def render_html(listing):
 """
 
 
+def write_json(path, value):
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w", encoding="utf-8") as handle:
+        json.dump(value, handle, ensure_ascii=False, indent=2)
+        handle.write("\n")
+
+
+def write_registry(out, tarballs):
+    """Static npm registry documents for Unity's scoped registries (see README)."""
+    now = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.000Z")
+    everything = {"_updated": int(datetime.datetime.now(datetime.timezone.utc).timestamp() * 1000)}
+    search = []
+    for name in sorted(tarballs):
+        versions = tarballs[name]
+        ordered = sorted(versions, key=semver_key)
+        latest_version = latest(versions)
+        latest_manifest = versions[latest_version]["manifest"]
+        times = {v: versions[v]["published"] or now for v in ordered}
+        times["created"] = min(times.values())
+        times["modified"] = max(times.values())
+        packument = {
+            "_id": name,
+            "name": name,
+            "description": latest_manifest.get("description", ""),
+            "dist-tags": {"latest": latest_version},
+            "versions": {v: versions[v]["manifest"] for v in ordered},
+            "time": times,
+            "author": latest_manifest.get("author"),
+            "license": latest_manifest.get("license"),
+            "repository": latest_manifest.get("repository"),
+        }
+        write_json(os.path.join(out, name), packument)
+        summary = {
+            "name": name,
+            "displayName": latest_manifest.get("displayName", name),
+            "description": latest_manifest.get("description", ""),
+            "dist-tags": {"latest": latest_version},
+            "versions": {latest_version: "latest"},
+            "time": {"modified": times["modified"]},
+            "author": latest_manifest.get("author"),
+            "keywords": latest_manifest.get("keywords", []),
+        }
+        everything[name] = summary
+        search.append({"package": {
+            "name": name,
+            "version": latest_version,
+            "description": latest_manifest.get("description", ""),
+            "keywords": latest_manifest.get("keywords", []),
+            "date": times["modified"],
+            "author": latest_manifest.get("author"),
+        }, "score": {"final": 1, "detail": {"quality": 1, "popularity": 1, "maintenance": 1}}, "searchScore": 1})
+    write_json(os.path.join(out, "-", "all"), everything)
+    write_json(os.path.join(out, "-", "v1", "search"), {"objects": search, "total": len(search), "time": now})
+    print(f"wrote registry with {len(search)} packages: " + ", ".join(f"{n}@{sorted(tarballs[n], key=semver_key)}" for n in sorted(tarballs)))
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--sources", default="sources.json")
@@ -159,8 +242,9 @@ def main():
         sources = json.load(handle)
 
     packages = {}
+    tarballs = {}
     for repo in sources["repositories"]:
-        collect(repo, token, packages)
+        collect(repo, token, packages, tarballs)
 
     listing = {
         "name": sources["name"],
@@ -180,6 +264,7 @@ def main():
         handle.write(render_html(listing))
     count = sum(len(v) for v in packages.values())
     print(f"wrote {args.out}/index.json with {len(packages)} packages, {count} versions")
+    write_registry(args.out, tarballs)
 
 
 if __name__ == "__main__":
