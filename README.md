@@ -6,7 +6,19 @@ yaito3014 のパッケージ一覧（VCC / ALCOM 向け `index.json`）を GitHu
 
 ## 使う側
 
-公開ページの「VCC / ALCOM に追加」ボタンを押すか、`index.json` の URL をリポジトリとして追加してください。
+- **VCC / ALCOM**: 公開ページの「VCC / ALCOM に追加」ボタンを押すか、`index.json` の URL をリポジトリとして追加。
+- **Unity の Package Manager**: `Project Settings > Package Manager` の Scoped Registries に
+  URL `https://yaito3014.github.io/vpm-listing`、Scope `com.yaito3014` を追加。
+
+## Unity 用のレジストリ（静的）
+
+`build.py` は VPM 用の `index.json` と一緒に、npm 形式の静的レジストリも出力します。
+
+- `/<パッケージ名>`: packument。署名済み `<name>-<version>.tgz` が添付されたリリースだけが version になる
+  （`dist.tarball` は GitHub Release のアセット、`shasum` と `integrity` はビルド時に計算）。
+- `/-/all` と `/-/v1/search`: 全パッケージの一覧。静的ホストはクエリ文字列を無視するので、検索は常に全件を返す。
+- 確認済み（2026-10-10）: Unity 6000.6 でレジストリから入れると署名は Valid（KakeyamaY）、2022.3.22f1 でも問題なく入る。
+- Unity の案内では、スコープ付きレジストリは組織内の配布を想定している。公開して使う点は承知のうえで運用する。
 
 ## 仕組み
 
