@@ -122,7 +122,7 @@ def render_html(listing):
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>{html.escape(listing['name'])} VPM</title>
+<title>{html.escape(listing['name'])} の VPM パッケージ</title>
 <style>
   body {{ font-family: system-ui, sans-serif; max-width: 720px; margin: 2rem auto; padding: 0 1rem; line-height: 1.6; }}
   .button {{ display: inline-block; padding: .6rem 1.2rem; border-radius: 6px; background: #3b6ef5; color: #fff; text-decoration: none; font-weight: 600; }}
@@ -132,7 +132,7 @@ def render_html(listing):
 </style>
 </head>
 <body>
-<h1>{html.escape(listing['name'])}</h1>
+<h1>{html.escape(listing['name'])} の VPM パッケージ</h1>
 <p>{html.escape(listing.get('description', ''))}</p>
 <p><a class="button" href="{html.escape(vcc)}">VCC / ALCOM に追加</a></p>
 <p>ボタンが動かないときは、VCC の <b>Settings &gt; Packages &gt; Add Repository</b>（ALCOM は <b>設定 &gt; リポジトリを追加</b>）に次の URL を貼り付けてください。</p>

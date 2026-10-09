@@ -1,8 +1,8 @@
 {
-  "name": "Shiori",
+  "name": "yaito3014",
   "id": "com.yaito3014.vpm",
   "author": "yaito3014",
-  "description": "Shiori, a Git client inside the Unity Editor, and its VRChat additions.",
+  "description": "yaito3014 が作った Unity / VRChat 向けパッケージの一覧です。Shiori（Unity Editor の中で動く Git クライアント）とその VRChat 向け追加機能から始まります。",
   "repositories": [
     "yaito3014/shiori",
     "yaito3014/shiori-vrchat"

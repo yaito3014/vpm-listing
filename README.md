@@ -1,7 +1,8 @@
-# Shiori VPM listing
+# yaito3014 VPM listing
 
-VCC / ALCOM 向けのパッケージ一覧（`index.json`）を GitHub Pages で配信するリポジトリです。
-対象は [shiori](https://github.com/yaito3014/shiori) と [shiori-vrchat](https://github.com/yaito3014/shiori-vrchat)。
+yaito3014 のパッケージ一覧（VCC / ALCOM 向け `index.json`）を GitHub Pages で配信するリポジトリです。
+今は [shiori](https://github.com/yaito3014/shiori) と [shiori-vrchat](https://github.com/yaito3014/shiori-vrchat) が載っています。
+新しいパッケージは `sources.json` の `repositories` にリポジトリを足すだけで一覧に入ります（Release ワークフローは同じものを使う）。
 
 ## 使う側
 
