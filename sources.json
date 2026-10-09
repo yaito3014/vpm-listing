@@ -1,0 +1,10 @@
+{
+  "name": "Shiori",
+  "id": "com.yaito3014.vpm",
+  "author": "yaito3014",
+  "description": "Shiori, a Git client inside the Unity Editor, and its VRChat additions.",
+  "repositories": [
+    "yaito3014/shiori",
+    "yaito3014/shiori-vrchat"
+  ]
+}

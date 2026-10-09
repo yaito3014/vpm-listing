@@ -1,0 +1,48 @@
+name: Publish listing
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    # Picks up releases even when a package repository could not send the dispatch.
+    - cron: '17 */6 * * *'
+  workflow_dispatch:
+  repository_dispatch:
+    types: [package-released]
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build index.json and index.html
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          owner=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+          python3 build.py --url "https://$owner.github.io/${{ github.event.repository.name }}/index.json" --out _site
+          cat _site/index.json
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
